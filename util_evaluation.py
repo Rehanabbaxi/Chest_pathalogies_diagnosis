@@ -32,56 +32,142 @@ def get_false_pos(y, pred, th=0.5):
     return np.sum((pred_t == True) & (y == 0))
 
 
-def get_performance_metrics(y, pred, class_labels, tp=get_true_pos,
-                            tn=get_true_neg, fp=get_false_pos,
-                            fn=get_false_neg,
-                            acc=None, prevalence=None, spec=None,
-                            sens=None, ppv=None, npv=None, auc=None, f1=None,
-                            thresholds=[]):
-    if len(thresholds) != len(class_labels):
-        thresholds = [.5] * len(class_labels)
+# --- PERFORMANCE METRIC HELPERS (MISSING -   DEFINED NOW) ---
 
-    column = ["", "TP", "TN", "FP", "FN", "Accuracy", "Prevalence",
-               "Sensitivity",
-               "Specificity", "PPV", "NPV", "AUC", "F1", "Threshold"]
-    df1 = pd.DataFrame(columns=column)
-    #df1 = df.copy()
-    for i in range(len(class_labels)):
+def get_accuracy(y, pred, th=0.5):
+    tp = get_true_pos(y, pred, th)
+    tn = get_true_neg(y, pred, th)
+    fp = get_false_pos(y, pred, th)
+    fn = get_false_neg(y, pred, th)
+    denominator = tp + tn + fp + fn
+    return (tp + tn) / denominator if denominator > 0 else 0.0
+
+def get_prevalence(y):
+    return np.sum(y) / len(y) if len(y) > 0 else 0.0
+
+def get_sensitivity(y, pred, th=0.5):
+    tp = get_true_pos(y, pred, th)
+    fn = get_false_neg(y, pred, th)
+    denominator = tp + fn
+    return tp / denominator if denominator > 0 else 0.0
+
+def get_specificity(y, pred, th=0.5):
+    tn = get_true_neg(y, pred, th)
+    fp = get_false_pos(y, pred, th)
+    denominator = tn + fp
+    return tn / denominator if denominator > 0 else 0.0
+
+def get_ppv(y, pred, th=0.5):
+    tp = get_true_pos(y, pred, th)
+    fp = get_false_pos(y, pred, th)
+    denominator = tp + fp
+    return tp / denominator if denominator > 0 else 0.0
+
+def get_npv(y, pred, th=0.5):
+    tn = get_true_neg(y, pred, th)
+    fn = get_false_neg(y, pred, th)
+    denominator = tn + fn
+    return tn / denominator if denominator > 0 else 0.0
+
+
+
+
+
+def get_performance_metrics(
+    y, pred, class_labels,
+    tp=None, tn=None, fp=None, fn=None,
+    acc=None, prevalence=None, spec=None,
+    sens=None, ppv=None, npv=None, auc=None, f1=None,
+    thresholds=[]
+):
+    """
+    Compute performance metrics for multi-label classification.
+    """
+    if len(thresholds) != len(class_labels):
+        # Fallback to 0.5 for all classes if thresholds are not provided or mismatched
+        thresholds = [0.5] * len(class_labels)
+
+    columns = [
+        "Class", "TP", "TN", "FP", "FN", "Accuracy", "Prevalence",
+        "Sensitivity", "Specificity", "PPV", "NPV", "AUC", "F1", "Threshold"
+    ]
+    results = []
+
+    for i, label in enumerate(class_labels):
+        # NOTE: Added 'th=thresholds[i]' to the calls for tp, tn, fp, and fn
+        # to ensure consistency with custom thresholds.
+        results.append([
+            label,
+            round(tp(y[:, i], pred[:, i], th=thresholds[i]), 3) if tp else "Not Defined",
+            round(tn(y[:, i], pred[:, i], th=thresholds[i]), 3) if tn else "Not Defined",
+            round(fp(y[:, i], pred[:, i], th=thresholds[i]), 3) if fp else "Not Defined",
+            round(fn(y[:, i], pred[:, i], th=thresholds[i]), 3) if fn else "Not Defined",
+            round(acc(y[:, i], pred[:, i], thresholds[i]), 3) if acc else "Not Defined",
+            round(prevalence(y[:, i]), 3) if prevalence else "Not Defined",
+            round(sens(y[:, i], pred[:, i], thresholds[i]), 3) if sens else "Not Defined",
+            round(spec(y[:, i], pred[:, i], thresholds[i]), 3) if spec else "Not Defined",
+            round(ppv(y[:, i], pred[:, i], thresholds[i]), 3) if ppv else "Not Defined",
+            round(npv(y[:, i], pred[:, i], thresholds[i]), 3) if npv else "Not Defined",
+            round(auc(y[:, i], pred[:, i]), 3) if auc else "Not Defined",
+            round(f1(y[:, i], pred[:, i] > thresholds[i]), 3) if f1 else "Not Defined",
+            round(thresholds[i], 3),
+        ])
+
+    # Construct the DataFrame in a single, robust step
+    df = pd.DataFrame(results, columns=columns).set_index("Class")
+    return df
+
+
+# def get_performance_metrics(y, pred, class_labels, tp=get_true_pos,
+#                             tn=get_true_neg, fp=get_false_pos,
+#                             fn=get_false_neg,
+#                             acc=None, prevalence=None, spec=None,
+#                             sens=None, ppv=None, npv=None, auc=None, f1=None,
+#                             thresholds=[]):
+#     if len(thresholds) != len(class_labels):
+#         thresholds = [.5] * len(class_labels)
+
+#     column = ["", "TP", "TN", "FP", "FN", "Accuracy", "Prevalence",
+#                "Sensitivity",
+#                "Specificity", "PPV", "NPV", "AUC", "F1", "Threshold"]
+#     df1 = pd.DataFrame(columns=column)
+#     #df1 = df.copy()
+#     for i in range(len(class_labels)):
         
         
-        df1.loc[i] = [""] + [0] * (12)
-#         df1 = df.copy()
-        df1.loc[i,0] = class_labels[i]
+#         df1.loc[i] = [""] + [0] * (13)
+# #         df1 = df.copy()
+#         df1.loc[i,0] = class_labels[i]
         
-        df1.loc[i,1] = round(tp(y[:, i], pred[:, i]),
-                             3) if tp != None else "Not Defined"
-        df1.loc[i,2] = round(tn(y[:, i], pred[:, i]),
-                             3) if tn != None else "Not Defined"
-        df1.loc[i,3] = round(fp(y[:, i], pred[:, i]),
-                             3) if fp != None else "Not Defined"
-        df1.loc[i,4] = round(fn(y[:, i], pred[:, i]),
-                             3) if fn != None else "Not Defined"
-        df1.loc[i,5] = round(acc(y[:, i], pred[:, i], thresholds[i]),
-                             3) if acc != None else "Not Defined"
-        df1.loc[i,6] = round(prevalence(y[:, i]),
-                             3) if prevalence != None else "Not Defined"
-        df1.loc[i,7] = round(sens(y[:, i], pred[:, i], thresholds[i]),
-                             3) if sens != None else "Not Defined"
-        df1.loc[i,8] = round(spec(y[:, i], pred[:, i], thresholds[i]),
-                             3) if spec != None else "Not Defined"
-        df1.loc[i,9] = round(ppv(y[:, i], pred[:, i], thresholds[i]),
-                             3) if ppv != None else "Not Defined"
-        df1.loc[i,10] = round(npv(y[:, i], pred[:, i], thresholds[i]),
-                              3) if npv != None else "Not Defined"
-        df1.loc[i,11] = round(auc(y[:, i], pred[:, i]),
-                              3) if auc != None else "Not Defined"
-        df1.loc[i,12] = round(f1(y[:, i], pred[:, i] > thresholds[i]),
-                              3) if f1 != None else "Not Defined"
-        df1.loc[i,13] = round(thresholds[i], 3)
+#         df1.loc[i,1] = round(tp(y[:, i], pred[:, i]),
+#                              3) if tp != None else "Not Defined"
+#         df1.loc[i,2] = round(tn(y[:, i], pred[:, i]),
+#                              3) if tn != None else "Not Defined"
+#         df1.loc[i,3] = round(fp(y[:, i], pred[:, i]),
+#                              3) if fp != None else "Not Defined"
+#         df1.loc[i,4] = round(fn(y[:, i], pred[:, i]),
+#                              3) if fn != None else "Not Defined"
+#         df1.loc[i,5] = round(acc(y[:, i], pred[:, i], thresholds[i]),
+#                              3) if acc != None else "Not Defined"
+#         df1.loc[i,6] = round(prevalence(y[:, i]),
+#                              3) if prevalence != None else "Not Defined"
+#         df1.loc[i,7] = round(sens(y[:, i], pred[:, i], thresholds[i]),
+#                              3) if sens != None else "Not Defined"
+#         df1.loc[i,8] = round(spec(y[:, i], pred[:, i], thresholds[i]),
+#                              3) if spec != None else "Not Defined"
+#         df1.loc[i,9] = round(ppv(y[:, i], pred[:, i], thresholds[i]),
+#                              3) if ppv != None else "Not Defined"
+#         df1.loc[i,10] = round(npv(y[:, i], pred[:, i], thresholds[i]),
+#                               3) if npv != None else "Not Defined"
+#         df1.loc[i,11] = round(auc(y[:, i], pred[:, i]),
+#                               3) if auc != None else "Not Defined"
+#         df1.loc[i,12] = round(f1(y[:, i], pred[:, i] > thresholds[i]),
+#                               3) if f1 != None else "Not Defined"
+#         df1.loc[i,13] = round(thresholds[i], 3)
         
-#         df = df1
-    df1 = df1.set_index("")
-    return df1
+# #         df = df1
+#     df1 = df1.set_index("")
+#     return df1
 
 
 def print_confidence_intervals(class_labels, statistics):
