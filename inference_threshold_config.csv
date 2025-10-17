@@ -1,0 +1,7 @@
+Class,Threshold
+Lung Opacity,0.38
+Lung Lesion,0.507
+Edema,0.547
+Consolidation,0.542
+Pneumothorax,0.355
+Pleural Effusion,0.504
